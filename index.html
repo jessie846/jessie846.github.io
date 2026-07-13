@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="A dark-mode airport geography quiz that asks whether one airport is east or west of a teacher-selected reference airport." />
+  <title>Airport East/West Trainer</title>
+
+  <link rel="preconnect" href="https://unpkg.com" />
+  <link rel="preconnect" href="https://basemaps.cartocdn.com" />
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIINfQ3OS2omXf+afM5h3ZKnWwMZ7zTz7A="
+    crossorigin=""
+  />
+
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #07111f;
+      --bg-2: #0b1728;
+      --panel: #0f1d30;
+      --panel-2: #13243a;
+      --panel-3: #172b45;
+      --line: #29415f;
+      --line-strong: #3b5f86;
+      --text: #edf6ff;
+      --muted: #9fb3c8;
+      --cyan: #38bdf8;
+      --cyan-light: #7dd3fc;
+      --blue: #2563eb;
+      --blue-light: #60a5fa;
+      --amber: #f59e0b;
+      --amber-light: #fbbf24;
+      --green: #34d399;
+      --green-bg: rgba(16, 185, 129, .12);
+      --red: #fb7185;
+      --red-bg: rgba(244, 63, 94, .12);
+      --shadow: 0 24px 70px rgba(0, 0, 0, .38);
+      --radius: 22px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { background: var(--bg); }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 8% 8%, rgba(37, 99, 235, .22), transparent 28rem),
+        radial-gradient(circle at 92% 12%, rgba(56, 189, 248, .13), transparent 30rem),
+        linear-gradient(180deg, #06101c 0%, #091625 50%, #07111f 100%);
+    }
+
+    button, select { font: inherit; }
+
+    button:focus-visible,
+    select:focus-visible {
+      outline: 4px solid rgba(56, 189, 248, .38);
+      outline-offset: 3px;
+    }
+
+    .app-shell {
+      width: min(1220px, calc(100% - 28px));
+      margin: 0 auto;
+      padding: 26px 0 44px;
+    }
+
+    header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 22px;
+      margin-bottom: 22px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding-top: 4px;
+    }
+
+    .brand-mark {
+      width: 54px;
+      height: 54px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(125, 211, 252, .35);
+      border-radius: 16px;
+      color: white;
+      background: linear-gradient(145deg, #2563eb, #123358);
+      box-shadow: 0 14px 30px rgba(37, 99, 235, .28);
+      font-size: 29px;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: clamp(1.3rem, 2vw, 1.9rem);
+      letter-spacing: -0.035em;
+      color: var(--text);
+    }
+
+    .brand p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: .94rem;
+    }
+
+    .teacher-controls {
+      display: grid;
+      grid-template-columns: minmax(190px, 1.25fr) minmax(145px, .75fr);
+      gap: 10px;
+      width: min(580px, 100%);
+      padding: 11px;
+      background: rgba(15, 29, 48, .88);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: 0 14px 38px rgba(0,0,0,.2);
+      backdrop-filter: blur(12px);
+    }
+
+    .control-group {
+      min-width: 0;
+    }
+
+    .control-group label {
+      display: block;
+      margin: 0 0 6px 2px;
+      color: #c7d9eb;
+      font-size: .72rem;
+      font-weight: 900;
+      letter-spacing: .065em;
+      text-transform: uppercase;
+    }
+
+    select {
+      width: 100%;
+      min-height: 42px;
+      border: 1px solid var(--line-strong);
+      border-radius: 11px;
+      padding: 8px 34px 8px 11px;
+      background: #0a1728;
+      color: var(--text);
+      font-size: .86rem;
+      font-weight: 750;
+    }
+
+    .top-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.02fr) minmax(370px, .98fr);
+      gap: 24px;
+      align-items: stretch;
+    }
+
+    .card {
+      background: linear-gradient(180deg, rgba(15, 29, 48, .98), rgba(12, 25, 42, .98));
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .quiz-card {
+      padding: clamp(24px, 4vw, 40px);
+      min-height: 650px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+
+    .stat {
+      padding: 12px 10px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: rgba(19, 36, 58, .72);
+      text-align: center;
+    }
+
+    .stat strong {
+      display: block;
+      color: var(--cyan-light);
+      font-size: 1.35rem;
+      line-height: 1;
+    }
+
+    .stat span {
+      display: block;
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: .72rem;
+      font-weight: 850;
+      text-transform: uppercase;
+      letter-spacing: .075em;
+    }
+
+    .eyebrow {
+      color: var(--cyan-light);
+      font-weight: 900;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+      font-size: .75rem;
+    }
+
+    .prompt {
+      margin: 11px 0 4px;
+      color: var(--text);
+      font-size: clamp(1.45rem, 3vw, 2.08rem);
+      line-height: 1.16;
+      letter-spacing: -.035em;
+    }
+
+    .airport-card {
+      margin: 23px 0 21px;
+      padding: 23px 24px 21px;
+      border: 1px solid var(--line-strong);
+      border-radius: 18px;
+      background:
+        linear-gradient(145deg, rgba(23, 43, 69, .95), rgba(11, 27, 46, .96)),
+        radial-gradient(circle at 90% 0%, rgba(56, 189, 248, .12), transparent 14rem);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.035);
+    }
+
+    .identifier-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 15px;
+      min-height: 83px;
+    }
+
+    .identifier-block {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .identifier-label {
+      color: var(--muted);
+      font-size: .67rem;
+      font-weight: 900;
+      letter-spacing: .13em;
+      text-transform: uppercase;
+    }
+
+    .icao-code {
+      color: #ffffff;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: clamp(2.8rem, 8vw, 4.8rem);
+      font-weight: 950;
+      line-height: .92;
+      letter-spacing: .055em;
+      text-shadow: 0 0 26px rgba(56, 189, 248, .16);
+    }
+
+    .code-divider {
+      color: #4e6f92;
+      font-size: 2.2rem;
+      font-weight: 300;
+      line-height: 1.05;
+      padding-bottom: 4px;
+    }
+
+    .iata-code {
+      color: var(--cyan-light);
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: clamp(1.4rem, 4vw, 2.15rem);
+      font-weight: 900;
+      line-height: 1;
+      letter-spacing: .08em;
+      padding-bottom: 5px;
+    }
+
+    .airport-card h2 {
+      margin: 19px 0 5px;
+      color: #d9e8f6;
+      font-size: clamp(.92rem, 1.6vw, 1.08rem);
+      font-weight: 760;
+      line-height: 1.28;
+      letter-spacing: -.01em;
+    }
+
+    .airport-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: .82rem;
+      font-weight: 600;
+    }
+
+    .choice-label {
+      margin: 0 0 10px;
+      color: var(--muted);
+      font-weight: 800;
+      font-size: .9rem;
+    }
+
+    .choices {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .choice-btn {
+      min-height: 94px;
+      border: 1px solid var(--line-strong);
+      border-radius: 18px;
+      background: #112239;
+      color: var(--text);
+      font-weight: 900;
+      font-size: 1.13rem;
+      cursor: pointer;
+      transition: transform .15s ease, border-color .15s ease, background .15s ease, box-shadow .15s ease;
+    }
+
+    .choice-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      border-color: var(--cyan);
+      background: #152b47;
+      box-shadow: 0 12px 28px rgba(0,0,0,.28);
+    }
+
+    .choice-btn[aria-pressed="true"] {
+      color: white;
+      border-color: var(--cyan-light);
+      background: linear-gradient(145deg, #2563eb, #164e8a);
+      box-shadow: 0 14px 30px rgba(37, 99, 235, .28);
+    }
+
+    .choice-btn:disabled { cursor: default; }
+
+    .choice-icon {
+      display: block;
+      color: var(--cyan-light);
+      font-size: 1.65rem;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+
+    .choice-btn[aria-pressed="true"] .choice-icon { color: white; }
+
+    .action-row {
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .primary-btn,
+    .secondary-btn {
+      min-height: 52px;
+      border-radius: 13px;
+      padding: 0 20px;
+      font-weight: 900;
+      cursor: pointer;
+      transition: transform .15s ease, opacity .15s ease, box-shadow .15s ease;
+    }
+
+    .primary-btn {
+      flex: 1;
+      border: 1px solid #3586ec;
+      color: white;
+      background: linear-gradient(145deg, #2563eb, #17457c);
+      box-shadow: 0 12px 25px rgba(37,99,235,.22);
+    }
+
+    .secondary-btn {
+      flex: 1;
+      border: 1px solid var(--line-strong);
+      color: var(--text);
+      background: #13243a;
+    }
+
+    .primary-btn:hover:not(:disabled),
+    .secondary-btn:hover:not(:disabled) { transform: translateY(-1px); }
+
+    .primary-btn:disabled {
+      opacity: .38;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .feedback {
+      margin-top: 18px;
+      border-radius: 16px;
+      padding: 16px 18px;
+      border: 1px solid transparent;
+      display: none;
+    }
+
+    .feedback.show { display: block; }
+    .feedback.correct { background: var(--green-bg); border-color: rgba(52, 211, 153, .38); }
+    .feedback.incorrect { background: var(--red-bg); border-color: rgba(251, 113, 133, .42); }
+
+    .feedback-title {
+      margin: 0 0 5px;
+      font-size: 1.08rem;
+      font-weight: 950;
+    }
+
+    .feedback.correct .feedback-title { color: var(--green); }
+    .feedback.incorrect .feedback-title { color: var(--red); }
+    .feedback p { margin: 0; color: #d6e4f2; line-height: 1.45; }
+
+    .hint {
+      margin-top: auto;
+      padding-top: 22px;
+      color: var(--muted);
+      font-size: .82rem;
+      line-height: 1.5;
+    }
+
+    .hint strong { color: #cde0f2; }
+
+    .map-card {
+      min-height: 650px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .map-head {
+      min-height: 91px;
+      padding: 20px 23px 16px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      background: rgba(12, 25, 42, .86);
+    }
+
+    .map-head h2 {
+      margin: 0;
+      color: var(--text);
+      font-size: 1.12rem;
+    }
+
+    .map-head p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: .82rem;
+    }
+
+    .legend {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      font-size: .75rem;
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    .legend span { display: inline-flex; align-items: center; gap: 6px; }
+    .dot { width: 10px; height: 10px; border-radius: 999px; display: inline-block; }
+    .dot.reference { background: var(--cyan-light); }
+    .dot.airport { background: var(--amber); }
+
+    #map {
+      flex: 1;
+      min-height: 500px;
+      background: #07111f;
+    }
+
+    .map-cover {
+      position: absolute;
+      inset: 91px 0 0;
+      z-index: 500;
+      display: grid;
+      place-items: center;
+      padding: 30px;
+      text-align: center;
+      background:
+        linear-gradient(rgba(8, 20, 35, .95), rgba(7, 18, 31, .96)),
+        repeating-linear-gradient(45deg, transparent, transparent 14px, rgba(56,189,248,.045) 14px, rgba(56,189,248,.045) 28px);
+      transition: opacity .25s ease, visibility .25s ease;
+    }
+
+    .map-cover.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+
+    .cover-icon {
+      width: 92px;
+      height: 92px;
+      margin: 0 auto 18px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      background: #10223a;
+      box-shadow: 0 18px 38px rgba(0,0,0,.35);
+      font-size: 2.6rem;
+    }
+
+    .map-cover h3 {
+      margin: 0 0 8px;
+      color: var(--text);
+      font-size: 1.32rem;
+    }
+
+    .map-cover p {
+      margin: 0;
+      max-width: 370px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .learning-note {
+      margin-top: 24px;
+      padding: 18px 20px;
+      border: 1px solid var(--line);
+      border-radius: 17px;
+      background: rgba(15, 29, 48, .8);
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: .88rem;
+    }
+
+    .learning-note strong,
+    .learning-note span { color: #d6e6f5; }
+
+    .leaflet-popup-content-wrapper,
+    .leaflet-popup-tip {
+      background: #13243a;
+      color: #e8f3fd;
+      box-shadow: 0 10px 30px rgba(0,0,0,.45);
+    }
+
+    .leaflet-popup-content-wrapper { border: 1px solid #355474; border-radius: 12px; }
+    .leaflet-popup-content { line-height: 1.42; }
+    .leaflet-popup-content strong { color: #ffffff; }
+    .leaflet-container a { color: #7dd3fc; }
+    .leaflet-control-zoom a { background: #13243a; color: #eaf4ff; border-color: #29415f; }
+    .leaflet-control-zoom a:hover { background: #1b3350; color: white; }
+    .leaflet-control-attribution { background: rgba(7,17,31,.82) !important; color: #7f96ac; }
+    .leaflet-control-attribution a { color: #91c9ea; }
+    .leaflet-tooltip {
+      background: #13243a;
+      border: 1px solid #426484;
+      color: #eaf4ff;
+      box-shadow: 0 7px 18px rgba(0,0,0,.3);
+    }
+    .leaflet-tooltip-top::before { border-top-color: #426484; }
+
+    .confetti {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1000;
+      overflow: hidden;
+    }
+
+    .confetti-piece {
+      position: absolute;
+      width: 10px;
+      height: 16px;
+      top: -20px;
+      border-radius: 3px;
+      animation: fall 900ms ease-out forwards;
+    }
+
+    @keyframes fall {
+      to { transform: translate(var(--drift), 105vh) rotate(680deg); opacity: .15; }
+    }
+
+    @media (max-width: 980px) {
+      header { align-items: stretch; flex-direction: column; }
+      .teacher-controls { width: 100%; }
+      .top-grid { grid-template-columns: 1fr; }
+      .quiz-card, .map-card { min-height: auto; }
+      #map { min-height: 510px; }
+    }
+
+    @media (max-width: 620px) {
+      .app-shell { width: min(100% - 18px, 1220px); padding-top: 15px; }
+      .brand-mark { width: 46px; height: 46px; border-radius: 13px; }
+      .teacher-controls { grid-template-columns: 1fr; }
+      .quiz-card { padding: 22px 18px; }
+      .stats { gap: 7px; }
+      .stat strong { font-size: 1.18rem; }
+      .identifier-row { gap: 10px; min-height: 74px; }
+      .icao-code { font-size: clamp(2.35rem, 15vw, 3.7rem); }
+      .iata-code { font-size: 1.5rem; }
+      .code-divider { font-size: 1.7rem; }
+      .choices { grid-template-columns: 1fr; }
+      .choice-btn { min-height: 76px; }
+      .choice-icon { display: inline; margin-right: 7px; }
+      .action-row { flex-direction: column; }
+      .map-head { align-items: flex-start; flex-direction: column; }
+      .map-cover { inset: 126px 0 0; }
+      #map { min-height: 440px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: .001ms !important;
+        transition-duration: .001ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header>
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">✈</div>
+        <div>
+          <h1>Airport East/West Trainer</h1>
+          <p>Practice reading ICAO and IATA identifiers in flight-plan format.</p>
+        </div>
+      </div>
+
+      <div class="teacher-controls" aria-label="Quiz settings">
+        <div class="control-group">
+          <label for="referenceAirport">Starting / reference airport</label>
+          <select id="referenceAirport" aria-label="Choose the starting or reference airport"></select>
+        </div>
+        <div class="control-group">
+          <label for="regionFilter">Quiz airport set</label>
+          <select id="regionFilter">
+            <option value="all">All regions</option>
+            <option value="US">United States</option>
+            <option value="Mexico">Mexico</option>
+            <option value="Bahamas">Bahamas</option>
+          </select>
+        </div>
+      </div>
+    </header>
+
+    <main class="top-grid">
+      <section class="card quiz-card" aria-labelledby="quizPrompt">
+        <div class="stats" aria-label="Quiz statistics">
+          <div class="stat"><strong id="scoreValue">0</strong><span>Correct</span></div>
+          <div class="stat"><strong id="questionValue">1</strong><span>Question</span></div>
+          <div class="stat"><strong id="streakValue">0</strong><span>Streak</span></div>
+        </div>
+
+        <div class="eyebrow" id="referenceEyebrow">Reference airport: KJAX / JAX</div>
+        <h2 class="prompt" id="quizPrompt">Is this airport east or west of JAX?</h2>
+
+        <div class="airport-card" aria-live="polite">
+          <div class="identifier-row" aria-label="Airport ICAO and IATA identifiers">
+            <div class="identifier-block">
+              <span class="identifier-label">ICAO</span>
+              <strong class="icao-code" id="airportIcao">KATL</strong>
+            </div>
+            <span class="code-divider" aria-hidden="true">/</span>
+            <div class="identifier-block">
+              <span class="identifier-label">IATA</span>
+              <strong class="iata-code" id="airportIata">ATL</strong>
+            </div>
+          </div>
+          <h2 id="airportName">Hartsfield–Jackson Atlanta International Airport</h2>
+          <p id="airportPlace">Atlanta, Georgia, United States</p>
+        </div>
+
+        <p class="choice-label">Choose one answer, then submit.</p>
+        <div class="choices" role="group" aria-label="Choose east or west">
+          <button class="choice-btn" id="eastBtn" type="button" data-answer="east" aria-pressed="false">
+            <span class="choice-icon" aria-hidden="true">→</span>
+            <span id="eastLabel">East of JAX</span>
+          </button>
+          <button class="choice-btn" id="westBtn" type="button" data-answer="west" aria-pressed="false">
+            <span class="choice-icon" aria-hidden="true">←</span>
+            <span id="westLabel">West of JAX</span>
+          </button>
+        </div>
+
+        <div class="action-row">
+          <button class="primary-btn" id="submitBtn" type="button" disabled>Submit answer</button>
+          <button class="secondary-btn" id="nextBtn" type="button" hidden>Next airport</button>
+        </div>
+
+        <div class="feedback" id="feedback" role="status" aria-live="polite">
+          <div class="feedback-title" id="feedbackTitle"></div>
+          <p id="feedbackText"></p>
+        </div>
+
+        <div class="hint">
+          <strong>Tip:</strong> Imagine a vertical north–south line through the selected reference airport. Airports on the right side are east; airports on the left side are west.
+          <br />Keyboard shortcuts: <strong>E</strong> = east, <strong>W</strong> = west, <strong>Enter</strong> = submit/next.
+        </div>
+      </section>
+
+      <section class="card map-card" aria-labelledby="mapTitle">
+        <div class="map-head">
+          <div>
+            <h2 id="mapTitle">Answer map</h2>
+            <p id="mapSubtitle">The reference airport and quiz airport will appear here.</p>
+          </div>
+          <div class="legend" aria-label="Map legend">
+            <span><i class="dot reference"></i><span id="referenceLegend">KJAX reference</span></span>
+            <span><i class="dot airport"></i> Quiz airport</span>
+          </div>
+        </div>
+        <div id="map" aria-label="Map showing the reference airport and the quiz airport"></div>
+        <div class="map-cover" id="mapCover">
+          <div>
+            <div class="cover-icon" aria-hidden="true">🗺️</div>
+            <h3>Make your prediction first</h3>
+            <p id="mapCoverText">After you submit, the map will reveal where the airport is compared with KJAX.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <aside class="learning-note">
+      <strong>How the game decides:</strong> It compares each quiz airport’s <em>longitude</em> with <span id="learningReference">KJAX / JAX</span>. A larger longitude value is east of the reference airport; a smaller longitude value is west. This is an east/west comparison only—not the direction you would drive or fly.
+    </aside>
+  </div>
+
+  <div class="confetti" id="confetti" aria-hidden="true"></div>
+
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+
+  <script>
+    const JACKSONVILLE = {
+      icao: "KJAX",
+      iata: "JAX",
+      name: "Jacksonville International Airport",
+      city: "Jacksonville, Florida, United States",
+      country: "US",
+      lat: 30.4941,
+      lon: -81.6879
+    };
+
+    // Airport coordinates are approximate and are used only for classroom geography practice.
+    const AIRPORTS = [
+      // United States — east of Jacksonville
+      { icao: "KMIA", iata: "MIA", name: "Miami International Airport", city: "Miami, Florida, United States", country: "US", lat: 25.7959, lon: -80.2870 },
+      { icao: "KFLL", iata: "FLL", name: "Fort Lauderdale–Hollywood International Airport", city: "Fort Lauderdale, Florida, United States", country: "US", lat: 26.0726, lon: -80.1527 },
+      { icao: "KPBI", iata: "PBI", name: "Palm Beach International Airport", city: "West Palm Beach, Florida, United States", country: "US", lat: 26.6832, lon: -80.0956 },
+      { icao: "KMCO", iata: "MCO", name: "Orlando International Airport", city: "Orlando, Florida, United States", country: "US", lat: 28.4312, lon: -81.3081 },
+      { icao: "KSAV", iata: "SAV", name: "Savannah/Hilton Head International Airport", city: "Savannah, Georgia, United States", country: "US", lat: 32.1276, lon: -81.2021 },
+      { icao: "KCHS", iata: "CHS", name: "Charleston International Airport", city: "Charleston, South Carolina, United States", country: "US", lat: 32.8986, lon: -80.0405 },
+      { icao: "KCLT", iata: "CLT", name: "Charlotte Douglas International Airport", city: "Charlotte, North Carolina, United States", country: "US", lat: 35.2140, lon: -80.9431 },
+      { icao: "KRDU", iata: "RDU", name: "Raleigh–Durham International Airport", city: "Raleigh–Durham, North Carolina, United States", country: "US", lat: 35.8801, lon: -78.7880 },
+      { icao: "KORF", iata: "ORF", name: "Norfolk International Airport", city: "Norfolk, Virginia, United States", country: "US", lat: 36.8946, lon: -76.2012 },
+      { icao: "KRIC", iata: "RIC", name: "Richmond International Airport", city: "Richmond, Virginia, United States", country: "US", lat: 37.5052, lon: -77.3197 },
+      { icao: "KDCA", iata: "DCA", name: "Ronald Reagan Washington National Airport", city: "Washington, D.C., United States", country: "US", lat: 38.8512, lon: -77.0402 },
+      { icao: "KIAD", iata: "IAD", name: "Washington Dulles International Airport", city: "Dulles, Virginia, United States", country: "US", lat: 38.9531, lon: -77.4565 },
+      { icao: "KBWI", iata: "BWI", name: "Baltimore/Washington International Airport", city: "Baltimore, Maryland, United States", country: "US", lat: 39.1774, lon: -76.6684 },
+      { icao: "KPHL", iata: "PHL", name: "Philadelphia International Airport", city: "Philadelphia, Pennsylvania, United States", country: "US", lat: 39.8729, lon: -75.2437 },
+      { icao: "KEWR", iata: "EWR", name: "Newark Liberty International Airport", city: "Newark, New Jersey, United States", country: "US", lat: 40.6895, lon: -74.1745 },
+      { icao: "KJFK", iata: "JFK", name: "John F. Kennedy International Airport", city: "New York City, New York, United States", country: "US", lat: 40.6413, lon: -73.7781 },
+      { icao: "KLGA", iata: "LGA", name: "LaGuardia Airport", city: "New York City, New York, United States", country: "US", lat: 40.7769, lon: -73.8740 },
+      { icao: "KBOS", iata: "BOS", name: "Boston Logan International Airport", city: "Boston, Massachusetts, United States", country: "US", lat: 42.3656, lon: -71.0096 },
+      { icao: "KPWM", iata: "PWM", name: "Portland International Jetport", city: "Portland, Maine, United States", country: "US", lat: 43.6462, lon: -70.3093 },
+
+      // United States — west of Jacksonville
+      { icao: "KATL", iata: "ATL", name: "Hartsfield–Jackson Atlanta International Airport", city: "Atlanta, Georgia, United States", country: "US", lat: 33.6407, lon: -84.4277 },
+      { icao: "KTPA", iata: "TPA", name: "Tampa International Airport", city: "Tampa, Florida, United States", country: "US", lat: 27.9755, lon: -82.5332 },
+      { icao: "KBNA", iata: "BNA", name: "Nashville International Airport", city: "Nashville, Tennessee, United States", country: "US", lat: 36.1263, lon: -86.6774 },
+      { icao: "KMSY", iata: "MSY", name: "Louis Armstrong New Orleans International Airport", city: "New Orleans, Louisiana, United States", country: "US", lat: 29.9934, lon: -90.2580 },
+      { icao: "KORD", iata: "ORD", name: "O'Hare International Airport", city: "Chicago, Illinois, United States", country: "US", lat: 41.9742, lon: -87.9073 },
+      { icao: "KSTL", iata: "STL", name: "St. Louis Lambert International Airport", city: "St. Louis, Missouri, United States", country: "US", lat: 38.7487, lon: -90.3700 },
+      { icao: "KDFW", iata: "DFW", name: "Dallas Fort Worth International Airport", city: "Dallas–Fort Worth, Texas, United States", country: "US", lat: 32.8998, lon: -97.0403 },
+      { icao: "KIAH", iata: "IAH", name: "George Bush Intercontinental Airport", city: "Houston, Texas, United States", country: "US", lat: 29.9902, lon: -95.3368 },
+      { icao: "KMCI", iata: "MCI", name: "Kansas City International Airport", city: "Kansas City, Missouri, United States", country: "US", lat: 39.2976, lon: -94.7139 },
+      { icao: "KDEN", iata: "DEN", name: "Denver International Airport", city: "Denver, Colorado, United States", country: "US", lat: 39.8561, lon: -104.6737 },
+      { icao: "KPHX", iata: "PHX", name: "Phoenix Sky Harbor International Airport", city: "Phoenix, Arizona, United States", country: "US", lat: 33.4352, lon: -112.0101 },
+      { icao: "KLAS", iata: "LAS", name: "Harry Reid International Airport", city: "Las Vegas, Nevada, United States", country: "US", lat: 36.0840, lon: -115.1537 },
+      { icao: "KLAX", iata: "LAX", name: "Los Angeles International Airport", city: "Los Angeles, California, United States", country: "US", lat: 33.9416, lon: -118.4085 },
+      { icao: "KSFO", iata: "SFO", name: "San Francisco International Airport", city: "San Francisco, California, United States", country: "US", lat: 37.6213, lon: -122.3790 },
+      { icao: "KSEA", iata: "SEA", name: "Seattle–Tacoma International Airport", city: "Seattle, Washington, United States", country: "US", lat: 47.4502, lon: -122.3088 },
+      { icao: "KPDX", iata: "PDX", name: "Portland International Airport", city: "Portland, Oregon, United States", country: "US", lat: 45.5898, lon: -122.5951 },
+      { icao: "PANC", iata: "ANC", name: "Ted Stevens Anchorage International Airport", city: "Anchorage, Alaska, United States", country: "US", lat: 61.1743, lon: -149.9985 },
+      { icao: "PHNL", iata: "HNL", name: "Daniel K. Inouye International Airport", city: "Honolulu, Hawaii, United States", country: "US", lat: 21.3187, lon: -157.9225 },
+
+      // Mexico
+      { icao: "MMUN", iata: "CUN", name: "Cancún International Airport", city: "Cancún, Quintana Roo, Mexico", country: "Mexico", lat: 21.0365, lon: -86.8771 },
+      { icao: "MMCZ", iata: "CZM", name: "Cozumel International Airport", city: "Cozumel, Quintana Roo, Mexico", country: "Mexico", lat: 20.5224, lon: -86.9256 },
+      { icao: "MMMD", iata: "MID", name: "Mérida International Airport", city: "Mérida, Yucatán, Mexico", country: "Mexico", lat: 20.9370, lon: -89.6577 },
+      { icao: "MMMX", iata: "MEX", name: "Mexico City International Airport", city: "Mexico City, Mexico", country: "Mexico", lat: 19.4361, lon: -99.0719 },
+      { icao: "MMMY", iata: "MTY", name: "Monterrey International Airport", city: "Monterrey, Nuevo León, Mexico", country: "Mexico", lat: 25.7785, lon: -100.1070 },
+      { icao: "MMGL", iata: "GDL", name: "Guadalajara International Airport", city: "Guadalajara, Jalisco, Mexico", country: "Mexico", lat: 20.5218, lon: -103.3112 },
+      { icao: "MMPR", iata: "PVR", name: "Licenciado Gustavo Díaz Ordaz International Airport", city: "Puerto Vallarta, Jalisco, Mexico", country: "Mexico", lat: 20.6801, lon: -105.2540 },
+      { icao: "MMSD", iata: "SJD", name: "Los Cabos International Airport", city: "San José del Cabo, Baja California Sur, Mexico", country: "Mexico", lat: 23.1518, lon: -109.7210 },
+      { icao: "MMTJ", iata: "TIJ", name: "Tijuana International Airport", city: "Tijuana, Baja California, Mexico", country: "Mexico", lat: 32.5411, lon: -116.9700 },
+
+      // Bahamas
+      { icao: "MYNN", iata: "NAS", name: "Lynden Pindling International Airport", city: "Nassau, New Providence, Bahamas", country: "Bahamas", lat: 25.0390, lon: -77.4662 },
+      { icao: "MYGF", iata: "FPO", name: "Grand Bahama International Airport", city: "Freeport, Grand Bahama, Bahamas", country: "Bahamas", lat: 26.5587, lon: -78.6956 },
+      { icao: "MYEF", iata: "GGT", name: "Exuma International Airport", city: "George Town, Great Exuma, Bahamas", country: "Bahamas", lat: 23.5626, lon: -75.8779 },
+      { icao: "MYEH", iata: "ELH", name: "North Eleuthera Airport", city: "North Eleuthera, Bahamas", country: "Bahamas", lat: 25.4749, lon: -76.6835 },
+      { icao: "MYAM", iata: "MHH", name: "Leonard M. Thompson International Airport", city: "Marsh Harbour, Abaco, Bahamas", country: "Bahamas", lat: 26.5114, lon: -77.0835 },
+      { icao: "MYBS", iata: "BIM", name: "South Bimini Airport", city: "Bimini, Bahamas", country: "Bahamas", lat: 25.6999, lon: -79.2647 }
+    ];
+
+    const ALL_AIRPORTS = [JACKSONVILLE, ...AIRPORTS];
+
+    const els = {
+      airportIcao: document.getElementById("airportIcao"),
+      airportIata: document.getElementById("airportIata"),
+      airportName: document.getElementById("airportName"),
+      airportPlace: document.getElementById("airportPlace"),
+      eastBtn: document.getElementById("eastBtn"),
+      westBtn: document.getElementById("westBtn"),
+      eastLabel: document.getElementById("eastLabel"),
+      westLabel: document.getElementById("westLabel"),
+      submitBtn: document.getElementById("submitBtn"),
+      nextBtn: document.getElementById("nextBtn"),
+      feedback: document.getElementById("feedback"),
+      feedbackTitle: document.getElementById("feedbackTitle"),
+      feedbackText: document.getElementById("feedbackText"),
+      scoreValue: document.getElementById("scoreValue"),
+      questionValue: document.getElementById("questionValue"),
+      streakValue: document.getElementById("streakValue"),
+      mapCover: document.getElementById("mapCover"),
+      mapCoverText: document.getElementById("mapCoverText"),
+      mapSubtitle: document.getElementById("mapSubtitle"),
+      referenceLegend: document.getElementById("referenceLegend"),
+      referenceEyebrow: document.getElementById("referenceEyebrow"),
+      quizPrompt: document.getElementById("quizPrompt"),
+      learningReference: document.getElementById("learningReference"),
+      referenceAirport: document.getElementById("referenceAirport"),
+      regionFilter: document.getElementById("regionFilter"),
+      confetti: document.getElementById("confetti")
+    };
+
+    let referenceAirport = JACKSONVILLE;
+    let currentAirport = null;
+    let selectedAnswer = null;
+    let isAnswered = false;
+    let score = 0;
+    let streak = 0;
+    let questionNumber = 0;
+    let lastIcao = null;
+
+    let map = null;
+    let referenceMarker = null;
+    let airportMarker = null;
+    let connectionLine = null;
+    let longitudeGuide = null;
+
+    function airportLabel(airport) {
+      return `${airport.icao} / ${airport.iata}`;
+    }
+
+    function populateReferenceAirports() {
+      const groups = [
+        { label: "United States", country: "US" },
+        { label: "Mexico", country: "Mexico" },
+        { label: "Bahamas", country: "Bahamas" }
+      ];
+
+      groups.forEach(group => {
+        const optgroup = document.createElement("optgroup");
+        optgroup.label = group.label;
+
+        ALL_AIRPORTS
+          .filter(airport => airport.country === group.country)
+          .sort((a, b) => a.icao.localeCompare(b.icao))
+          .forEach(airport => {
+            const option = document.createElement("option");
+            option.value = airport.icao;
+            option.textContent = `${airport.icao} / ${airport.iata} — ${airport.city.split(",")[0]}`;
+            option.selected = airport.icao === JACKSONVILLE.icao;
+            optgroup.appendChild(option);
+          });
+
+        els.referenceAirport.appendChild(optgroup);
+      });
+    }
+
+    function updateReferenceText() {
+      const label = airportLabel(referenceAirport);
+      els.referenceEyebrow.textContent = `Reference airport: ${label}`;
+      els.quizPrompt.textContent = `Is this airport east or west of ${referenceAirport.iata}?`;
+      els.eastLabel.textContent = `East of ${referenceAirport.iata}`;
+      els.westLabel.textContent = `West of ${referenceAirport.iata}`;
+      els.referenceLegend.textContent = `${referenceAirport.icao} reference`;
+      els.mapSubtitle.textContent = `${referenceAirport.icao} and the quiz airport will appear here.`;
+      els.mapCoverText.textContent = `After you submit, the map will reveal where the airport is compared with ${referenceAirport.icao}.`;
+      els.learningReference.textContent = label;
+    }
+
+    function getCorrectAnswer(airport) {
+      return airport.lon > referenceAirport.lon ? "east" : "west";
+    }
+
+    function getPool() {
+      const filter = els.regionFilter.value;
+      const regionalPool = filter === "all"
+        ? ALL_AIRPORTS
+        : ALL_AIRPORTS.filter(airport => airport.country === filter);
+
+      return regionalPool.filter(airport => airport.icao !== referenceAirport.icao);
+    }
+
+    function pickAirport() {
+      const pool = getPool();
+      let choices = pool.filter(airport => airport.icao !== lastIcao);
+      if (!choices.length) choices = pool;
+      return choices[Math.floor(Math.random() * choices.length)];
+    }
+
+    function clearMapLayers() {
+      if (!map) return;
+      [referenceMarker, airportMarker, connectionLine, longitudeGuide].forEach(layer => {
+        if (layer) map.removeLayer(layer);
+      });
+      referenceMarker = null;
+      airportMarker = null;
+      connectionLine = null;
+      longitudeGuide = null;
+    }
+
+    function startQuestion() {
+      currentAirport = pickAirport();
+      lastIcao = currentAirport.icao;
+      selectedAnswer = null;
+      isAnswered = false;
+      questionNumber += 1;
+
+      els.airportIcao.textContent = currentAirport.icao;
+      els.airportIata.textContent = currentAirport.iata;
+      els.airportName.textContent = currentAirport.name;
+      els.airportPlace.textContent = currentAirport.city;
+      els.questionValue.textContent = questionNumber;
+
+      [els.eastBtn, els.westBtn].forEach(button => {
+        button.disabled = false;
+        button.setAttribute("aria-pressed", "false");
+      });
+
+      els.submitBtn.disabled = true;
+      els.submitBtn.hidden = false;
+      els.nextBtn.hidden = true;
+      els.feedback.className = "feedback";
+      els.feedbackTitle.textContent = "";
+      els.feedbackText.textContent = "";
+      els.mapCover.classList.remove("hidden");
+    }
+
+    function resetQuiz() {
+      score = 0;
+      streak = 0;
+      questionNumber = 0;
+      lastIcao = null;
+      els.scoreValue.textContent = "0";
+      els.streakValue.textContent = "0";
+      clearMapLayers();
+      startQuestion();
+    }
+
+    function selectAnswer(answer) {
+      if (isAnswered) return;
+      selectedAnswer = answer;
+      els.eastBtn.setAttribute("aria-pressed", String(answer === "east"));
+      els.westBtn.setAttribute("aria-pressed", String(answer === "west"));
+      els.submitBtn.disabled = false;
+    }
+
+    function initializeMap() {
+      if (map) return;
+
+      map = L.map("map", {
+        zoomControl: true,
+        scrollWheelZoom: false
+      }).setView([30.5, -88], 4);
+
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+        subdomains: "abcd",
+        maxZoom: 20,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+      }).addTo(map);
+    }
+
+    function showMap(airport) {
+      initializeMap();
+      els.mapCover.classList.add("hidden");
+
+      window.setTimeout(() => {
+        map.invalidateSize();
+        clearMapLayers();
+
+        referenceMarker = L.circleMarker([referenceAirport.lat, referenceAirport.lon], {
+          radius: 10,
+          color: "#07111f",
+          weight: 3,
+          fillColor: "#7dd3fc",
+          fillOpacity: 1
+        }).addTo(map).bindPopup(
+          `<strong>${referenceAirport.icao} / ${referenceAirport.iata}</strong><br>${referenceAirport.name}<br>${referenceAirport.city}<br>Longitude: ${formatLongitude(referenceAirport.lon)}`
+        );
+
+        airportMarker = L.circleMarker([airport.lat, airport.lon], {
+          radius: 10,
+          color: "#07111f",
+          weight: 3,
+          fillColor: "#f59e0b",
+          fillOpacity: 1
+        }).addTo(map).bindPopup(
+          `<strong>${airport.icao} / ${airport.iata}</strong><br>${airport.name}<br>${airport.city}<br>Longitude: ${formatLongitude(airport.lon)}`
+        );
+
+        connectionLine = L.polyline(
+          [[referenceAirport.lat, referenceAirport.lon], [airport.lat, airport.lon]],
+          { color: "#60a5fa", weight: 4, opacity: .82, dashArray: "8, 8" }
+        ).addTo(map);
+
+        longitudeGuide = L.polyline(
+          [[-5, referenceAirport.lon], [72, referenceAirport.lon]],
+          { color: "#7dd3fc", weight: 2, opacity: .78, dashArray: "5, 7" }
+        ).addTo(map).bindTooltip(`${referenceAirport.icao} longitude`, { sticky: true });
+
+        const bounds = L.latLngBounds(
+          [referenceAirport.lat, referenceAirport.lon],
+          [airport.lat, airport.lon]
+        );
+        map.fitBounds(bounds.pad(0.32), { maxZoom: 6 });
+        airportMarker.openPopup();
+      }, 280);
+    }
+
+    function formatLongitude(longitude) {
+      return `${Math.abs(longitude).toFixed(2)}° ${longitude < 0 ? "W" : "E"}`;
+    }
+
+    function submitAnswer() {
+      if (!selectedAnswer || isAnswered) return;
+      isAnswered = true;
+
+      const correctAnswer = getCorrectAnswer(currentAirport);
+      const isCorrect = selectedAnswer === correctAnswer;
+      const difference = Math.abs(currentAirport.lon - referenceAirport.lon).toFixed(1);
+      const quizLabel = airportLabel(currentAirport);
+      const referenceLabel = airportLabel(referenceAirport);
+
+      if (isCorrect) {
+        score += 1;
+        streak += 1;
+        els.feedback.className = "feedback show correct";
+        els.feedbackTitle.textContent = "Correct! Nice work.";
+        els.feedbackText.textContent = `${quizLabel} is ${correctAnswer} of ${referenceLabel}. Their longitudes are about ${difference}° apart.`;
+        launchConfetti();
+      } else {
+        streak = 0;
+        els.feedback.className = "feedback show incorrect";
+        els.feedbackTitle.textContent = `Not quite — it is ${correctAnswer}.`;
+        els.feedbackText.textContent = `${quizLabel} is ${correctAnswer} of ${referenceLabel}. Use the cyan north–south guide on the map to compare their positions.`;
+      }
+
+      els.scoreValue.textContent = score;
+      els.streakValue.textContent = streak;
+
+      [els.eastBtn, els.westBtn].forEach(button => button.disabled = true);
+      els.submitBtn.hidden = true;
+      els.nextBtn.hidden = false;
+      els.nextBtn.focus();
+
+      showMap(currentAirport);
+    }
+
+    function launchConfetti() {
+      const colors = ["#38bdf8", "#60a5fa", "#34d399", "#f59e0b", "#fb7185"];
+      els.confetti.innerHTML = "";
+      for (let i = 0; i < 35; i++) {
+        const piece = document.createElement("span");
+        piece.className = "confetti-piece";
+        piece.style.left = `${Math.random() * 100}%`;
+        piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+        piece.style.setProperty("--drift", `${(Math.random() - .5) * 180}px`);
+        piece.style.animationDelay = `${Math.random() * 160}ms`;
+        els.confetti.appendChild(piece);
+      }
+      window.setTimeout(() => { els.confetti.innerHTML = ""; }, 1300);
+    }
+
+    els.eastBtn.addEventListener("click", () => selectAnswer("east"));
+    els.westBtn.addEventListener("click", () => selectAnswer("west"));
+    els.submitBtn.addEventListener("click", submitAnswer);
+    els.nextBtn.addEventListener("click", startQuestion);
+
+    els.referenceAirport.addEventListener("change", () => {
+      const selected = ALL_AIRPORTS.find(airport => airport.icao === els.referenceAirport.value);
+      referenceAirport = selected || JACKSONVILLE;
+      updateReferenceText();
+      resetQuiz();
+    });
+
+    els.regionFilter.addEventListener("change", resetQuiz);
+
+    document.addEventListener("keydown", event => {
+      if (event.target.matches("select, input, textarea")) return;
+      if (!isAnswered && event.key.toLowerCase() === "e") selectAnswer("east");
+      if (!isAnswered && event.key.toLowerCase() === "w") selectAnswer("west");
+      if (event.key === "Enter") {
+        if (isAnswered) startQuestion();
+        else if (selectedAnswer) submitAnswer();
+      }
+    });
+
+    populateReferenceAirports();
+    updateReferenceText();
+    startQuestion();
+  </script>
+</body>
+</html>
