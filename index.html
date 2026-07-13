@@ -6,15 +6,6 @@
   <meta name="description" content="A dark-mode airport geography quiz that asks whether one airport is east or west of a teacher-selected reference airport." />
   <title>Airport East/West Trainer</title>
 
-  <link rel="preconnect" href="https://unpkg.com" />
-  <link rel="preconnect" href="https://basemaps.cartocdn.com" />
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha256-p4NxAoJBhIINfQ3OS2omXf+afM5h3ZKnWwMZ7zTz7A="
-    crossorigin=""
-  />
-
   <style>
     :root {
       color-scheme: dark;
@@ -420,6 +411,7 @@
     .hint strong { color: #cde0f2; }
 
     .map-card {
+      height: 650px;
       min-height: 650px;
       position: relative;
       display: flex;
@@ -464,9 +456,101 @@
     .dot.airport { background: var(--amber); }
 
     #map {
-      flex: 1;
-      min-height: 500px;
+      position: relative;
+      flex: 0 0 559px;
+      height: 559px;
+      min-height: 0;
+      overflow: hidden;
       background: #07111f;
+      isolation: isolate;
+    }
+
+    #mapSvg {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: #07111f;
+    }
+
+    .map-water { fill: #071522; }
+    .map-grid { stroke: #28415d; stroke-width: 1; opacity: .58; vector-effect: non-scaling-stroke; }
+    .map-grid.major { stroke: #3b5f7f; opacity: .75; }
+    .map-grid-label {
+      fill: #6f8aa4;
+      font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+      font-weight: 750;
+      letter-spacing: .035em;
+    }
+    .map-land {
+      fill: #18334b;
+      stroke: #4d7394;
+      stroke-width: 1.5;
+      vector-effect: non-scaling-stroke;
+    }
+    .map-land.secondary { fill: #132b40; stroke: #3f6383; }
+    .map-island { fill: #1d3b55; stroke: #5c83a3; stroke-width: 1; vector-effect: non-scaling-stroke; }
+    .map-place-label {
+      fill: #7894ad;
+      font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+      font-weight: 900;
+      letter-spacing: .12em;
+      text-anchor: middle;
+    }
+    .map-direction-label {
+      fill: #98b7d1;
+      font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+      font-weight: 950;
+      letter-spacing: .12em;
+    }
+    .map-connection {
+      stroke: #60a5fa;
+      stroke-dasharray: 9 8;
+      stroke-linecap: round;
+      vector-effect: non-scaling-stroke;
+    }
+    .map-longitude-guide {
+      stroke: #7dd3fc;
+      stroke-dasharray: 6 7;
+      opacity: .9;
+      vector-effect: non-scaling-stroke;
+    }
+    .map-marker-ring {
+      stroke: #06101c;
+      stroke-width: 3;
+      vector-effect: non-scaling-stroke;
+    }
+    .map-marker.reference { fill: #7dd3fc; }
+    .map-marker.airport { fill: #f59e0b; }
+    .map-code-label rect {
+      fill: #10243a;
+      stroke: #4a6d8c;
+      stroke-width: 1;
+      vector-effect: non-scaling-stroke;
+    }
+    .map-code-label text {
+      fill: #f4f9ff;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-weight: 900;
+      text-anchor: middle;
+      dominant-baseline: middle;
+    }
+    .map-summary {
+      position: absolute;
+      left: 14px;
+      right: 14px;
+      bottom: 12px;
+      z-index: 2;
+      padding: 9px 12px;
+      border: 1px solid rgba(74, 109, 140, .72);
+      border-radius: 11px;
+      color: #c8d9e8;
+      background: rgba(8, 22, 37, .88);
+      box-shadow: 0 8px 24px rgba(0,0,0,.25);
+      font-size: .78rem;
+      font-weight: 750;
+      line-height: 1.35;
+      pointer-events: none;
+      backdrop-filter: blur(7px);
     }
 
     .map-cover {
@@ -525,29 +609,6 @@
     .learning-note strong,
     .learning-note span { color: #d6e6f5; }
 
-    .leaflet-popup-content-wrapper,
-    .leaflet-popup-tip {
-      background: #13243a;
-      color: #e8f3fd;
-      box-shadow: 0 10px 30px rgba(0,0,0,.45);
-    }
-
-    .leaflet-popup-content-wrapper { border: 1px solid #355474; border-radius: 12px; }
-    .leaflet-popup-content { line-height: 1.42; }
-    .leaflet-popup-content strong { color: #ffffff; }
-    .leaflet-container a { color: #7dd3fc; }
-    .leaflet-control-zoom a { background: #13243a; color: #eaf4ff; border-color: #29415f; }
-    .leaflet-control-zoom a:hover { background: #1b3350; color: white; }
-    .leaflet-control-attribution { background: rgba(7,17,31,.82) !important; color: #7f96ac; }
-    .leaflet-control-attribution a { color: #91c9ea; }
-    .leaflet-tooltip {
-      background: #13243a;
-      border: 1px solid #426484;
-      color: #eaf4ff;
-      box-shadow: 0 7px 18px rgba(0,0,0,.3);
-    }
-    .leaflet-tooltip-top::before { border-top-color: #426484; }
-
     .confetti {
       position: fixed;
       inset: 0;
@@ -573,8 +634,9 @@
       header { align-items: stretch; flex-direction: column; }
       .teacher-controls { width: 100%; }
       .top-grid { grid-template-columns: 1fr; }
-      .quiz-card, .map-card { min-height: auto; }
-      #map { min-height: 510px; }
+      .quiz-card { min-height: auto; }
+      .map-card { height: auto; min-height: 0; }
+      #map { flex: 0 0 510px; height: 510px; }
     }
 
     @media (max-width: 620px) {
@@ -594,7 +656,7 @@
       .action-row { flex-direction: column; }
       .map-head { align-items: flex-start; flex-direction: column; }
       .map-cover { inset: 126px 0 0; }
-      #map { min-height: 440px; }
+      #map { flex-basis: 440px; height: 440px; }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -700,7 +762,13 @@
             <span><i class="dot airport"></i> Quiz airport</span>
           </div>
         </div>
-        <div id="map" aria-label="Map showing the reference airport and the quiz airport"></div>
+        <div id="map" aria-label="Map showing the reference airport and the quiz airport">
+          <svg id="mapSvg" viewBox="0 0 1100 620" role="img" aria-labelledby="mapSvgTitle mapSvgDesc" preserveAspectRatio="xMidYMid meet">
+            <title id="mapSvgTitle">Airport location comparison map</title>
+            <desc id="mapSvgDesc">A stylized map showing the reference airport, the quiz airport, and their east-west relationship.</desc>
+          </svg>
+          <div class="map-summary" id="mapSummary">The map will zoom to both airports after you submit.</div>
+        </div>
         <div class="map-cover" id="mapCover">
           <div>
             <div class="cover-icon" aria-hidden="true">🗺️</div>
@@ -717,12 +785,6 @@
   </div>
 
   <div class="confetti" id="confetti" aria-hidden="true"></div>
-
-  <script
-    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-    crossorigin=""
-  ></script>
 
   <script>
     const JACKSONVILLE = {
@@ -820,6 +882,10 @@
       mapCover: document.getElementById("mapCover"),
       mapCoverText: document.getElementById("mapCoverText"),
       mapSubtitle: document.getElementById("mapSubtitle"),
+      mapSvg: document.getElementById("mapSvg"),
+      mapSvgTitle: document.getElementById("mapSvgTitle"),
+      mapSvgDesc: document.getElementById("mapSvgDesc"),
+      mapSummary: document.getElementById("mapSummary"),
       referenceLegend: document.getElementById("referenceLegend"),
       referenceEyebrow: document.getElementById("referenceEyebrow"),
       quizPrompt: document.getElementById("quizPrompt"),
@@ -838,11 +904,40 @@
     let questionNumber = 0;
     let lastIcao = null;
 
-    let map = null;
-    let referenceMarker = null;
-    let airportMarker = null;
-    let connectionLine = null;
-    let longitudeGuide = null;
+    const SVG_NS = "http://www.w3.org/2000/svg";
+    const MAP_WORLD = { width: 1100, height: 620, minLon: -170, maxLon: -60, minLat: 15, maxLat: 72 };
+
+    // Simplified coastlines keep the activity fully self-contained and reliable offline.
+    const MAP_SHAPES = [
+      {
+        className: "map-land secondary",
+        points: [[-168,71],[-156,72],[-145,69],[-136,61],[-130,55],[-127,50],[-124,48],[-117,49],[-110,49],[-102,49],[-95,49],[-89,48],[-84,46],[-80,45],[-74,46],[-67,47],[-64,51],[-70,55],[-80,58],[-91,63],[-104,68],[-120,72],[-145,73]]
+      },
+      {
+        className: "map-land",
+        points: [[-124.7,48.5],[-123.2,45],[-124.1,42],[-122.4,38],[-117.2,32.5],[-111,31.3],[-108.2,31.3],[-106.5,31.8],[-104,29.8],[-100,29.2],[-97.2,25.9],[-95.5,27.5],[-90.5,29.1],[-88,30.2],[-85,29.5],[-82.7,27],[-81.4,24.6],[-80.1,25.2],[-80.5,29],[-79.2,33],[-76,36],[-74,40.5],[-70,43],[-67,45],[-72,45],[-78,43],[-82,42],[-84,46],[-89,47],[-95,49],[-110,49],[-124.7,48.5]]
+      },
+      {
+        className: "map-land",
+        points: [[-117.2,32.5],[-111,31.3],[-108.2,31.3],[-106.5,31.8],[-104,29.8],[-100,29.2],[-97.2,25.9],[-96.2,22],[-92.2,18.2],[-88.1,18],[-86.8,20.5],[-89.7,21.8],[-91.5,24],[-97.2,26],[-104,30],[-110,25],[-114,28],[-117.2,32.5]]
+      },
+      {
+        className: "map-land",
+        points: [[-114.8,32.5],[-112.6,29.5],[-111.1,25.8],[-109.7,23],[-110.8,22.8],[-113.3,26.5],[-115.1,30.2],[-114.8,32.5]]
+      },
+      {
+        className: "map-land secondary",
+        points: [[-169,71],[-160,70],[-151,66],[-145,61],[-137,58],[-132,55],[-141,55],[-151,58],[-160,61],[-168,66],[-169,71]]
+      }
+    ];
+
+    const MAP_ISLANDS = [
+      { lat: 21.32, lon: -157.92, r: 2.7 }, { lat: 20.90, lon: -156.43, r: 2.1 },
+      { lat: 19.74, lon: -156.05, r: 2.2 }, { lat: 22.05, lon: -159.35, r: 1.7 },
+      { lat: 26.56, lon: -78.70, r: 1.7 }, { lat: 25.04, lon: -77.47, r: 1.8 },
+      { lat: 25.47, lon: -76.68, r: 1.3 }, { lat: 23.56, lon: -75.88, r: 1.3 },
+      { lat: 25.70, lon: -79.26, r: 1.1 }
+    ];
 
     function airportLabel(airport) {
       return `${airport.icao} / ${airport.iata}`;
@@ -881,7 +976,7 @@
       els.eastLabel.textContent = `East of ${referenceAirport.iata}`;
       els.westLabel.textContent = `West of ${referenceAirport.iata}`;
       els.referenceLegend.textContent = `${referenceAirport.icao} reference`;
-      els.mapSubtitle.textContent = `${referenceAirport.icao} and the quiz airport will appear here.`;
+      els.mapSubtitle.textContent = `${referenceAirport.icao} and the quiz airport will appear on the built-in map.`;
       els.mapCoverText.textContent = `After you submit, the map will reveal where the airport is compared with ${referenceAirport.icao}.`;
       els.learningReference.textContent = label;
     }
@@ -906,15 +1001,197 @@
       return choices[Math.floor(Math.random() * choices.length)];
     }
 
-    function clearMapLayers() {
-      if (!map) return;
-      [referenceMarker, airportMarker, connectionLine, longitudeGuide].forEach(layer => {
-        if (layer) map.removeLayer(layer);
+    function svgElement(name, attributes = {}, text = "") {
+      const element = document.createElementNS(SVG_NS, name);
+      Object.entries(attributes).forEach(([key, value]) => element.setAttribute(key, value));
+      if (text) element.textContent = text;
+      return element;
+    }
+
+    function projectPoint(lat, lon) {
+      const x = ((lon - MAP_WORLD.minLon) / (MAP_WORLD.maxLon - MAP_WORLD.minLon)) * MAP_WORLD.width;
+      const y = ((MAP_WORLD.maxLat - lat) / (MAP_WORLD.maxLat - MAP_WORLD.minLat)) * MAP_WORLD.height;
+      return { x, y };
+    }
+
+    function addPolygon(parent, points, className) {
+      const projected = points.map(([lon, lat]) => {
+        const point = projectPoint(lat, lon);
+        return `${point.x.toFixed(2)},${point.y.toFixed(2)}`;
+      }).join(" ");
+      parent.appendChild(svgElement("polygon", { points: projected, class: className }));
+    }
+
+    function clamp(value, minimum, maximum) {
+      return Math.min(Math.max(value, minimum), maximum);
+    }
+
+    function computeMapView(airport) {
+      if (!airport) return { x: 0, y: 0, width: MAP_WORLD.width, height: MAP_WORLD.height };
+
+      const a = projectPoint(referenceAirport.lat, referenceAirport.lon);
+      const b = projectPoint(airport.lat, airport.lon);
+      const centerX = (a.x + b.x) / 2;
+      const centerY = (a.y + b.y) / 2;
+      const rawWidth = Math.abs(a.x - b.x);
+      const rawHeight = Math.abs(a.y - b.y);
+      let width = clamp(rawWidth * 1.65 + 150, 245, MAP_WORLD.width);
+      let height = clamp(rawHeight * 1.7 + 120, 180, MAP_WORLD.height);
+      const targetRatio = 1.72;
+
+      if (width / height < targetRatio) width = Math.min(MAP_WORLD.width, height * targetRatio);
+      if (width / height > targetRatio) height = Math.min(MAP_WORLD.height, width / targetRatio);
+
+      const x = clamp(centerX - width / 2, 0, MAP_WORLD.width - width);
+      const y = clamp(centerY - height / 2, 0, MAP_WORLD.height - height);
+      return { x, y, width, height };
+    }
+
+    function mapFontSize(view, pixels) {
+      return (view.width / 1000) * pixels;
+    }
+
+    function addMapLabel(parent, point, text, type, view, placement = "above") {
+      const fontSize = mapFontSize(view, 26);
+      const paddingX = mapFontSize(view, 10);
+      const height = fontSize * 1.55;
+      const width = Math.max(fontSize * 4.9, text.length * fontSize * .62 + paddingX * 2);
+      let x = point.x;
+      let y = placement === "above" ? point.y - height * 1.25 : point.y + height * 1.25;
+      x = clamp(x, view.x + width / 2 + mapFontSize(view, 5), view.x + view.width - width / 2 - mapFontSize(view, 5));
+      y = clamp(y, view.y + height / 2 + mapFontSize(view, 8), view.y + view.height - height / 2 - mapFontSize(view, 35));
+
+      const group = svgElement("g", { class: `map-code-label ${type}` });
+      group.appendChild(svgElement("rect", {
+        x: x - width / 2,
+        y: y - height / 2,
+        width,
+        height,
+        rx: height * .25
+      }));
+      group.appendChild(svgElement("text", { x, y: y + fontSize * .04, "font-size": fontSize }, text));
+      parent.appendChild(group);
+    }
+
+    function renderMap(airport = null) {
+      const svg = els.mapSvg;
+      const view = computeMapView(airport);
+      svg.setAttribute("viewBox", `${view.x} ${view.y} ${view.width} ${view.height}`);
+      svg.replaceChildren();
+
+      const base = svgElement("g");
+      base.appendChild(svgElement("rect", { x: 0, y: 0, width: MAP_WORLD.width, height: MAP_WORLD.height, class: "map-water" }));
+
+      const gridFont = mapFontSize(view, 17);
+      for (let lon = -170; lon <= -60; lon += 10) {
+        const p = projectPoint(MAP_WORLD.minLat, lon);
+        base.appendChild(svgElement("line", { x1: p.x, y1: 0, x2: p.x, y2: MAP_WORLD.height, class: lon % 20 === 0 ? "map-grid major" : "map-grid" }));
+        if (p.x >= view.x && p.x <= view.x + view.width) {
+          base.appendChild(svgElement("text", {
+            x: p.x + mapFontSize(view, 4),
+            y: view.y + mapFontSize(view, 23),
+            class: "map-grid-label",
+            "font-size": gridFont
+          }, `${Math.abs(lon)}°W`));
+        }
+      }
+
+      for (let lat = 20; lat <= 70; lat += 10) {
+        const p = projectPoint(lat, MAP_WORLD.minLon);
+        base.appendChild(svgElement("line", { x1: 0, y1: p.y, x2: MAP_WORLD.width, y2: p.y, class: lat % 20 === 0 ? "map-grid major" : "map-grid" }));
+      }
+
+      MAP_SHAPES.forEach(shape => addPolygon(base, shape.points, shape.className));
+      MAP_ISLANDS.forEach(island => {
+        const p = projectPoint(island.lat, island.lon);
+        base.appendChild(svgElement("circle", { cx: p.x, cy: p.y, r: island.r, class: "map-island" }));
       });
-      referenceMarker = null;
-      airportMarker = null;
-      connectionLine = null;
-      longitudeGuide = null;
+
+      const placeFont = mapFontSize(view, 18);
+      const placeLabels = [
+        { lat: 39, lon: -99, text: "UNITED STATES" },
+        { lat: 23.6, lon: -102.5, text: "MEXICO" },
+        { lat: 64, lon: -151, text: "ALASKA" },
+        { lat: 20.7, lon: -156.8, text: "HAWAII" },
+        { lat: 24.5, lon: -76.8, text: "BAHAMAS" }
+      ];
+      placeLabels.forEach(label => {
+        const p = projectPoint(label.lat, label.lon);
+        if (p.x >= view.x && p.x <= view.x + view.width && p.y >= view.y && p.y <= view.y + view.height) {
+          base.appendChild(svgElement("text", { x: p.x, y: p.y, class: "map-place-label", "font-size": placeFont }, label.text));
+        }
+      });
+
+      const directionFont = mapFontSize(view, 18);
+      base.appendChild(svgElement("text", {
+        x: view.x + mapFontSize(view, 16),
+        y: view.y + view.height - mapFontSize(view, 18),
+        class: "map-direction-label",
+        "font-size": directionFont,
+        "text-anchor": "start"
+      }, "← WEST"));
+      base.appendChild(svgElement("text", {
+        x: view.x + view.width - mapFontSize(view, 16),
+        y: view.y + view.height - mapFontSize(view, 18),
+        class: "map-direction-label",
+        "font-size": directionFont,
+        "text-anchor": "end"
+      }, "EAST →"));
+      svg.appendChild(base);
+
+      if (!airport) {
+        els.mapSummary.textContent = "The map will zoom to both airports after you submit.";
+        els.mapSvgTitle.textContent = "Airport location comparison map";
+        els.mapSvgDesc.textContent = "A stylized map of the United States, Mexico, and the Bahamas used for airport east-west practice.";
+        return;
+      }
+
+      const overlay = svgElement("g");
+      const referencePoint = projectPoint(referenceAirport.lat, referenceAirport.lon);
+      const airportPoint = projectPoint(airport.lat, airport.lon);
+      const strokeWidth = Math.max(2, mapFontSize(view, 4));
+      const markerRadius = Math.max(2.1, view.width / 94);
+
+      overlay.appendChild(svgElement("line", {
+        x1: referencePoint.x,
+        y1: view.y,
+        x2: referencePoint.x,
+        y2: view.y + view.height,
+        class: "map-longitude-guide",
+        "stroke-width": strokeWidth
+      }));
+      overlay.appendChild(svgElement("line", {
+        x1: referencePoint.x,
+        y1: referencePoint.y,
+        x2: airportPoint.x,
+        y2: airportPoint.y,
+        class: "map-connection",
+        "stroke-width": strokeWidth + 1
+      }));
+
+      overlay.appendChild(svgElement("circle", {
+        cx: referencePoint.x, cy: referencePoint.y, r: markerRadius,
+        class: "map-marker map-marker-ring reference"
+      }));
+      overlay.appendChild(svgElement("circle", {
+        cx: airportPoint.x, cy: airportPoint.y, r: markerRadius,
+        class: "map-marker map-marker-ring airport"
+      }));
+
+      const referencePlacement = referencePoint.y <= airportPoint.y ? "above" : "below";
+      const airportPlacement = referencePoint.y <= airportPoint.y ? "below" : "above";
+      addMapLabel(overlay, referencePoint, airportLabel(referenceAirport), "reference", view, referencePlacement);
+      addMapLabel(overlay, airportPoint, airportLabel(airport), "airport", view, airportPlacement);
+      svg.appendChild(overlay);
+
+      const answer = getCorrectAnswer(airport);
+      els.mapSummary.textContent = `${airportLabel(airport)}: ${formatLongitude(airport.lon)} • ${answer.toUpperCase()} of ${airportLabel(referenceAirport)}: ${formatLongitude(referenceAirport.lon)}`;
+      els.mapSvgTitle.textContent = `${airportLabel(airport)} is ${answer} of ${airportLabel(referenceAirport)}`;
+      els.mapSvgDesc.textContent = `A stylized map with ${airportLabel(referenceAirport)} marked in cyan and ${airportLabel(airport)} marked in amber. ${airportLabel(airport)} is ${answer} of the reference airport.`;
+    }
+
+    function clearMapLayers() {
+      renderMap();
     }
 
     function startQuestion() {
@@ -963,66 +1240,10 @@
       els.submitBtn.disabled = false;
     }
 
-    function initializeMap() {
-      if (map) return;
-
-      map = L.map("map", {
-        zoomControl: true,
-        scrollWheelZoom: false
-      }).setView([30.5, -88], 4);
-
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-        subdomains: "abcd",
-        maxZoom: 20,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-      }).addTo(map);
-    }
-
     function showMap(airport) {
-      initializeMap();
       els.mapCover.classList.add("hidden");
-
-      window.setTimeout(() => {
-        map.invalidateSize();
-        clearMapLayers();
-
-        referenceMarker = L.circleMarker([referenceAirport.lat, referenceAirport.lon], {
-          radius: 10,
-          color: "#07111f",
-          weight: 3,
-          fillColor: "#7dd3fc",
-          fillOpacity: 1
-        }).addTo(map).bindPopup(
-          `<strong>${referenceAirport.icao} / ${referenceAirport.iata}</strong><br>${referenceAirport.name}<br>${referenceAirport.city}<br>Longitude: ${formatLongitude(referenceAirport.lon)}`
-        );
-
-        airportMarker = L.circleMarker([airport.lat, airport.lon], {
-          radius: 10,
-          color: "#07111f",
-          weight: 3,
-          fillColor: "#f59e0b",
-          fillOpacity: 1
-        }).addTo(map).bindPopup(
-          `<strong>${airport.icao} / ${airport.iata}</strong><br>${airport.name}<br>${airport.city}<br>Longitude: ${formatLongitude(airport.lon)}`
-        );
-
-        connectionLine = L.polyline(
-          [[referenceAirport.lat, referenceAirport.lon], [airport.lat, airport.lon]],
-          { color: "#60a5fa", weight: 4, opacity: .82, dashArray: "8, 8" }
-        ).addTo(map);
-
-        longitudeGuide = L.polyline(
-          [[-5, referenceAirport.lon], [72, referenceAirport.lon]],
-          { color: "#7dd3fc", weight: 2, opacity: .78, dashArray: "5, 7" }
-        ).addTo(map).bindTooltip(`${referenceAirport.icao} longitude`, { sticky: true });
-
-        const bounds = L.latLngBounds(
-          [referenceAirport.lat, referenceAirport.lon],
-          [airport.lat, airport.lon]
-        );
-        map.fitBounds(bounds.pad(0.32), { maxZoom: 6 });
-        airportMarker.openPopup();
-      }, 280);
+      els.mapSubtitle.textContent = `${airportLabel(airport)} compared with ${airportLabel(referenceAirport)}.`;
+      renderMap(airport);
     }
 
     function formatLongitude(longitude) {
@@ -1105,6 +1326,7 @@
 
     populateReferenceAirports();
     updateReferenceText();
+    renderMap();
     startQuestion();
   </script>
 </body>
